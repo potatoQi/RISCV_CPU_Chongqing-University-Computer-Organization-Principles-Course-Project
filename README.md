@@ -1,0 +1,2 @@
+# RISCV_CPU_Chongqing-University-Computer-Organization-Principles-Course-Project
+用Verilog实现一个简易RISC-V指令集CPU软核
