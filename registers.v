@@ -47,6 +47,7 @@ always @ (negedge clk) begin
         for (i = 0; i < (1<<5); i = i + 1) begin
             registers[i] <= 0;
         end
+        registers[2] <= 128;
     end else if (regWrite && (wire_addr != 0)) begin // 只有在regWrite并且wire_addr不为0号寄存器的时候才把数据写进去
         registers[wire_addr] <= din;
     end

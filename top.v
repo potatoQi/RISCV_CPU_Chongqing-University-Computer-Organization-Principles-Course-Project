@@ -45,6 +45,14 @@ module top # (
         .addr(pc),
         .dout(instr)
     );
+    reg [DATA_WIDTH-1:0] instr_true;
+    always @(*) begin
+        if (instr === 32'bz || instr === 32'bx) begin
+            instr_true = 32'b0;
+        end else begin
+            instr_true = instr;
+        end
+    end
     
     //---------------------------d_cache & BM---------------------------
 //    data_ram data_ram (
@@ -66,7 +74,6 @@ module top # (
                            (load_store == 3'b101) ? (2'b00) :
                            (load_store == 3'b110) ? (2'b01) :
                            (load_store == 3'b111) ? (2'b10) : (2'b10);
-    wire cpu_data_addr_ok, cpu_data_data_ok;
     wire cache_data_req, cache_data_wr;
     wire [1:0] cache_data_size;
     wire [9:0] cache_data_addr;
@@ -82,25 +89,16 @@ module top # (
         .load_store(load_store),
         .cpu_data_addr(alu_result),
         .cpu_data_wdata(read_data2),
-        .cpu_data_rdata_true(readdata),
-        .cpu_data_addr_ok(cpu_data_addr_ok),
-        .cpu_data_data_ok(cpu_data_data_ok),
-        .cache_data_req(cache_data_req),
-        .cache_data_wr(cache_data_wr),
-        .cache_data_addr(cache_data_addr),
-        .cache_data_wdata(cache_data_wdata),
-        .cache_data_rdata(cache_data_rdata),
-        .cache_data_addr_ok(cache_data_addr_ok),
-        .cache_data_data_ok(cache_data_data_ok)
+        .cpu_data_rdata_true(readdata)
     );
-    BM your_instance_name (
-        .clka(clk),    // input wire clka
-        .ena(cache_data_req),      // input wire ena
-        .wea(cache_data_wr),      // input wire [0 : 0] wea
-        .addra(cache_data_addr),  // input wire [9 : 0] addra
-        .dina(cache_data_wdata),    // input wire [31 : 0] dina
-        .douta(cache_data_rdata)  // output wire [31 : 0] douta
-    );
+//    BM your_instance_name (
+//        .clka(clk),    // input wire clka
+//        .ena(cache_data_req),      // input wire ena
+//        .wea(cache_data_wr),      // input wire [0 : 0] wea
+//        .addra(cache_data_addr),  // input wire [9 : 0] addra
+//        .dina(cache_data_wdata),    // input wire [31 : 0] dina
+//        .douta(cache_data_rdata)  // output wire [31 : 0] douta
+//    );
     
     //---------------------------riscv--------------------------------
     riscv riscv (
@@ -112,7 +110,7 @@ module top # (
         .label(label),
         .pre_branch(pre_branch),
         .prediction(prediction),
-        .instr(instr),
+        .instr(instr_true),
         .readdata(readdata),
         .pc(pc),
         .alu_result(alu_result),
@@ -134,7 +132,7 @@ module top # (
         .pcsrc(pcsrc),
         .pc(pc),
         .pc_M(pc_M),
-        .instr(instr),
+        .instr(instr_true),
         .instr_M(instr_M),
         .branch(pre_branch),
         .prediction(prediction),

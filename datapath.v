@@ -80,7 +80,7 @@ module datapath #(
     );
     //mux2 of pc_nxt_1/2
     assign pcsrc = ((zero_M & branch_M[0]) | (greater_signed_M & branch_M[1]) | 
-                   (greater_unsigned_M & branch_M[2]) | (less_signed & branch_M[3]) | 
+                   (greater_unsigned_M & branch_M[2]) | (less_signed_M & branch_M[3]) | 
                    (less_unsigned_M & branch_M[4]) | (not_zero_M & branch_M[5]) |
                    branch_M[6] | branch_M[7]);
     mux2 mux2_pc (
