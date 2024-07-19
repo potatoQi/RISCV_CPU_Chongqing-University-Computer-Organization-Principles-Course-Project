@@ -28,18 +28,19 @@ module branch_predictor #(
 ) (
     input clk,
     input rst,
-    input load_use_flag,
-    input pcsrc,
+    input miss,                         // cache miss信号
+    input load_use_flag,                // 寄存器延迟器暂停信号
+    input pcsrc,                        // 静态预测刷新信号
     input [DATA_WIDTH-1:0] pc,          // 当前pc
     input [DATA_WIDTH-1:0] pc_M,
     input [DATA_WIDTH-1:0] instr,       // 当前指令
     input [DATA_WIDTH-1:0] instr_M,
-    output branch,
-    output prediction,                   // 预测结果
-    output [DATA_WIDTH-1:0] label,        // 跳转地址
-    output error,
-    output correct,
-    output [DATA_WIDTH-1:0] new_label
+    output branch,                      // 是否是跳转指令信号
+    output prediction,                  // 预测结果
+    output [DATA_WIDTH-1:0] label,      // 跳转地址
+    output error,                       // 预测错误信号
+    output correct,                     // 预测正确信号
+    output [DATA_WIDTH-1:0] new_label   // 跳转指令自己的PC值 + 4（用来在预测错误的时候跳回去）
 );
     wire [DATA_WIDTH-1:0] din;
     assign din = instr;
@@ -74,9 +75,9 @@ module branch_predictor #(
     ) : 0);
     
     wire prediction_D, prediction_E, prediction_M;
-    floprc #(1) r_pre_b1 (clk, rst, (pcsrc & (~correct)) | error, load_use_flag, prediction, prediction_D);
-    floprc #(1) r_pre_b2 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0, prediction_D, prediction_E);
-    floprc #(1) r_pre_b3 (clk, rst, (pcsrc & (~correct)) | error, 0, prediction_E, prediction_M);
+    floprc #(1) r_pre_b1 (clk, rst, (pcsrc & (~correct)) | error, load_use_flag | miss, prediction, prediction_D);
+    floprc #(1) r_pre_b2 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0 | miss, prediction_D, prediction_E);
+    floprc #(1) r_pre_b3 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, prediction_E, prediction_M);
     
     assign correct = (instr_M[6:0] == 7'b1100011) &
         (prediction_M == pcsrc)  ;  //如果预测正确，则取消静态预测

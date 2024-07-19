@@ -32,10 +32,10 @@ module instr_ram #(
 
     reg [DATA_WIDTH-1:0] mem [0:DEPTH-1];
 
-    // 初始化存储器，可以在这里预先加载一些指令
-    initial begin
-        $readmemh("D:/Projects/viProjects/lab3/instructions.hex", mem); // 从文件加载指令
-    end
+     //初始化存储器，可以在这里预先加载一些指令
+//    initial begin
+//        $readmemh("D:/Projects/viProjects/lab3/instructions.hex", mem); // 从文件加载指令
+//    end
 
     assign dout = mem[addr >> 2];
 endmodule

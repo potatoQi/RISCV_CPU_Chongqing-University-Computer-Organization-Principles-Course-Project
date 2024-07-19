@@ -161,13 +161,14 @@ module controller #(
     parameter DATA_WIDTH = 32
 )(
     input clk, rst,
-    input error, correct,
-    input pcsrc, 
-    input load_use_flag,   
+    input miss,                         //cache miss信号
+    input error, correct,               //预测错误/成功信号
+    input pcsrc,                        //静态预测激活信号
+    input load_use_flag,                //load_use暂停信号
     input [DATA_WIDTH-1:0] instr_D,
-    input is_bubble,
-    output [7:0] branch_M,
-    output [2:0] load_store_M,
+    input is_bubble,                    //没用到
+    output [7:0] branch_M,              //用来区分是哪种类型的跳转指令
+    output [2:0] load_store_M,          //用来区分是哪种类型的load,store指令
     output memread_M_true,
     output memwrite_M_true,
     output memread_E_true,
@@ -198,22 +199,22 @@ module controller #(
     mux2 #(1) m6 (0, regwrite_W, is_bubble, regwrite_W_true);
     mux2 #(1) m7 (0, regwrite_M, is_bubble, regwrite_M_true);
     
-    floprc #(1) r13 (clk, rst, (pcsrc & (~correct)) | load_use_flag | error, 0, alusrc_D, alusrc_E);
-    floprc #(5) r14 (clk, rst, (pcsrc & (~correct)) | error, 0, alucontrol_D, alucontrol_E);
-    floprc #(1) r15 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0, memread_D, memread_E);
-    floprc #(1) r16 (clk, rst, (pcsrc & (~correct)) | error, 0, memread_E, memread_M);
-    floprc #(1) r17 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0, memwrite_D, memwrite_E);
-    floprc #(1) r18 (clk, rst, (pcsrc & (~correct)) | error, 0, memwrite_E, memwrite_M);
-    floprc #(1) r19 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0, regsrc_D, regsrc_E);
-    floprc #(1) r20 (clk, rst, (pcsrc & (~correct)) | error, 0, regsrc_E, regsrc_M);
+    floprc #(1) r13 (clk, rst, (pcsrc & (~correct)) | load_use_flag | error, 0 | miss, alusrc_D, alusrc_E);
+    floprc #(5) r14 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, alucontrol_D, alucontrol_E);
+    floprc #(1) r15 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0 | miss, memread_D, memread_E);
+    floprc #(1) r16 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, memread_E, memread_M);
+    floprc #(1) r17 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0 | miss, memwrite_D, memwrite_E);
+    floprc #(1) r18 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, memwrite_E, memwrite_M);
+    floprc #(1) r19 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0 | miss, regsrc_D, regsrc_E);
+    floprc #(1) r20 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, regsrc_E, regsrc_M);
     floprc #(1) r21 (clk, rst, 0, 0, regsrc_M, regsrc_W);
-    floprc #(1) r22 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0, regwrite_D, regwrite_E);
-    floprc #(1) r23 (clk, rst, (pcsrc & (~correct)) | error, 0, regwrite_E, regwrite_M);
+    floprc #(1) r22 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0 | miss, regwrite_D, regwrite_E);
+    floprc #(1) r23 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, regwrite_E, regwrite_M);
     floprc #(1) r24 (clk, rst, 0, 0, regwrite_M, regwrite_W);
-    floprc #(8) r25 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0, branch_D, branch_E);
-    floprc #(8) r26 (clk, rst, (pcsrc & (~correct)) | error, 0, branch_E, branch_M);
-    floprc #(3) r27 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0, load_store_D, load_store_E);
-    floprc #(3) r28 (clk, rst, (pcsrc & (~correct)) | error, 0, load_store_E, load_store_M);
+    floprc #(8) r25 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0 | miss, branch_D, branch_E);
+    floprc #(8) r26 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, branch_E, branch_M);
+    floprc #(3) r27 (clk, rst, (pcsrc & (~correct)) | error | load_use_flag, 0 | miss, load_store_D, load_store_E);
+    floprc #(3) r28 (clk, rst, (pcsrc & (~correct)) | error, 0 | miss, load_store_E, load_store_M);
 
     main_dec main_dec (
         .op(instr_D[6:0]),

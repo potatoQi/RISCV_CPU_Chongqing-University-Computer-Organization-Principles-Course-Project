@@ -24,6 +24,7 @@ module riscv # (
     parameter DATA_WIDTH = 32
 ) (
     input clk, rst,
+    input miss,
     input error, correct,
     input [DATA_WIDTH-1:0] new_label,
     input [DATA_WIDTH-1:0] label,
@@ -54,7 +55,7 @@ module riscv # (
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(load_use_flag),
+        .load_use_flag(load_use_flag | miss),
         .din(instr),
         .dout(instr_D)
     );
@@ -62,6 +63,7 @@ module riscv # (
     datapath datapath (
         .clk(clk),
         .rst(rst),
+        .miss(miss),
         .correct(correct),
         .error(error),
         .new_label(new_label),
@@ -95,6 +97,7 @@ module riscv # (
     
     //-----------------controller--------------
     controller controller (
+        .miss(miss),
         .is_bubble(0),
         .clk(clk),
         .rst(rst),

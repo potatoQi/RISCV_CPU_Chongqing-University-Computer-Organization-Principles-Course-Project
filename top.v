@@ -38,6 +38,7 @@ module top # (
     wire [DATA_WIDTH-1:0] pc_M;
     wire error, correct;
     wire [DATA_WIDTH-1:0] new_label;
+    wire miss;
     
     //----------------------------inst_ram--------------------------
     instr_ram instr_ram (
@@ -45,14 +46,16 @@ module top # (
         .addr(pc),
         .dout(instr)
     );
-    reg [DATA_WIDTH-1:0] instr_true;
-    always @(*) begin
-        if (instr === 32'bz || instr === 32'bx) begin
-            instr_true = 32'b0;
-        end else begin
-            instr_true = instr;
-        end
-    end
+    wire [DATA_WIDTH-1:0] instr_true;
+    assign instr_true = (instr === 32'bz || instr === 32'bx) ? 32'b0 : instr;
+//    reg [DATA_WIDTH-1:0] instr_true;
+//    always @(*) begin
+//        if (instr === 32'bz || instr === 32'bx) begin
+//            instr_true = 32'b0;
+//        end else begin
+//            instr_true = instr;
+//        end
+//    end
     
     //---------------------------d_cache & BM---------------------------
 //    data_ram data_ram (
@@ -89,7 +92,8 @@ module top # (
         .load_store(load_store),
         .cpu_data_addr(alu_result),
         .cpu_data_wdata(read_data2),
-        .cpu_data_rdata_true(readdata)
+        .cpu_data_rdata_true(readdata),
+        .miss_ok(miss)
     );
 //    BM your_instance_name (
 //        .clka(clk),    // input wire clka
@@ -104,6 +108,7 @@ module top # (
     riscv riscv (
         .clk(clk),
         .rst(rst),
+        .miss(miss),
         .error(error),
         .correct(correct),
         .new_label(new_label),
@@ -128,6 +133,7 @@ module top # (
     branch_predictor branch_predictor (
         .clk(clk),
         .rst(rst),
+        .miss(miss),
         .load_use_flag(load_use_flag),
         .pcsrc(pcsrc),
         .pc(pc),

@@ -24,32 +24,33 @@ module datapath #(
     parameter DATA_WIDTH = 32
 )(
     input clk, rst,
-    input error, correct,
-    input [DATA_WIDTH-1:0] new_label,
-    input [DATA_WIDTH-1:0] label,
-    input pre_branch,
-    input prediction,
+    input miss,                             //d_cache miss信号
+    input error, correct,                   //error为预测错误信号，correct为预测正确信号
+    input [DATA_WIDTH-1:0] new_label,       //new_label为预测错误时跳回老地方的地址
+    input [DATA_WIDTH-1:0] label,           //label为跳转指令要跳转的地址
+    input pre_branch,                       //表示该条指令是否是跳转指令
+    input prediction,                       //动态预测结果
     input [DATA_WIDTH-1:0] instr_D,         //由inst_ram传入
     input [DATA_WIDTH-1:0] readdata,        //由data_ram传入
-    input [7:0] branch_M,
-    input [2:0] load_store_M,
-    input memread, memwrite,
-    input regsrc,
-    input load_use_flag,
-    input alusrc,
-    input [4:0] alucontrol,
-    input regwrite,
-    input [2:0] immsel,
-    input [1:0] fowardA, fowardB,
-    input fowardC,
-    output [DATA_WIDTH-1:0] pc,
-    output [DATA_WIDTH-1:0] alu_result_M,
-    output [DATA_WIDTH-1:0] read_data2_M_true,
+    input [7:0] branch_M,                   //用来表示该条指令是哪一条跳转指令
+    input [2:0] load_store_M,               //用来表示该条指令是load/store中具体的哪一种
+    input memread, memwrite,                //没用到
+    input regsrc,                           //pc的其中一个选择器中的一个选择信号
+    input load_use_flag,                    //寄存器延迟器的暂停信号
+    input alusrc,                           //alu那用来选择rs/imm的=一个mux选择信号
+    input [4:0] alucontrol,                 //alu的控制信号
+    input regwrite,                         //寄存器的写信号
+    input [2:0] immsel,                     //立即数扩展方式
+    input [1:0] fowardA, fowardB,           //前推信号
+    input fowardC,                          //前推信号
+    output [DATA_WIDTH-1:0] pc,             //pc
+    output [DATA_WIDTH-1:0] alu_result_M,   //alu运算结果
+    output [DATA_WIDTH-1:0] read_data2_M_true,  //最后要写回寄存器的结果（WB）
     output [DATA_WIDTH-1:0] instr_E, instr_M, instr_W,
     output [DATA_WIDTH-1:0] pc_M,
     output pcsrc
 );
-    wire [DATA_WIDTH-1:0] pc_nxt_1, pc_nxt_2, pc_nxt, pc_nxt_true, pc_nxt_true_true;
+    wire [DATA_WIDTH-1:0] pc_nxt_1, pc_nxt_2_1, pc_nxt_2_2, pc_nxt_2, pc_nxt, pc_nxt_true, pc_nxt_true_true;
     wire [DATA_WIDTH-1:0] read_data1, write_data;
     wire [DATA_WIDTH-1:0] imm_gen, imm_gen_sl1;
     wire zero, zero_M;
@@ -105,7 +106,7 @@ module datapath #(
     pc get_nxt_pc (
         .clk(clk),
         .rst(rst),
-        .load_use_flag(load_use_flag),
+        .load_use_flag(load_use_flag | miss),
         .din(pc_nxt_true_true),
         .dout(pc)
     );
@@ -113,7 +114,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(load_use_flag),
+        .load_use_flag(load_use_flag | miss),
         .din(pc),
         .dout(pc_D)
     );
@@ -121,7 +122,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | load_use_flag | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(pc_D),
         .dout(pc_E)
     );
@@ -129,7 +130,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(pc_E),
         .dout(pc_M)
     );
@@ -137,7 +138,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc(0),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(pc_M),
         .dout(pc_W)
     );
@@ -147,7 +148,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc(0),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(readdata),
         .dout(readdata_W)
     );
@@ -155,7 +156,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc(0),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(alu_result_M),
         .dout(alu_result_W)
     );
@@ -163,7 +164,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc(0),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(instr_M),
         .dout(instr_W)
     );
@@ -177,14 +178,14 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc(0),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(branch_M),
         .dout(branch_W)
     );
     mux2 mux2_jal (
         .din1(pc_W + 4),
         .din2(write_data),
-        .op(branch_W[6] | branch_W[7]),
+        .op(branch_W[6]),
         .dout(write_data_true)
     );
     registers registers (
@@ -203,15 +204,29 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | load_use_flag | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(read_data1),
         .dout(read_data1_E)
+    );
+    wire [31:0] read_data1_E_plus_imm_gen_E;
+    adder readdata1_plus_imm (
+        .din1(read_data1_E),
+        .din2(imm_gen_sl1),   // 这里需要斟酌TODO
+        .dout(read_data1_E_plus_imm_gen_E)
+    );
+    floprc r_readdata1_plus_imm (
+        .clk(clk),
+        .rst(rst),
+        .clc((pcsrc & (~correct)) | error),
+        .load_use_flag(0 | miss),
+        .din(read_data1_E_plus_imm_gen_E),
+        .dout(pc_nxt_2_1)
     );
     floprc r4 (
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | load_use_flag | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(read_data2),
         .dout(read_data2_E)
     );
@@ -219,7 +234,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(read_data2_E),
         .dout(read_data2_M)
     );
@@ -233,7 +248,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | load_use_flag | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(instr_D),
         .dout(instr_E)
     );
@@ -241,7 +256,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(instr_E),
         .dout(instr_M)
     );
@@ -256,7 +271,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | load_use_flag | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(imm_gen),
         .dout(imm_gen_E)
     );
@@ -273,8 +288,14 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(pc_plus_imm_gen_sl1_E),
+        .dout(pc_nxt_2_2)
+    );
+    mux2 choose_pc_nxt_2 (
+        .din1(pc_nxt_2_1),
+        .din2(pc_nxt_2_2),
+        .op(branch_M[7]),
         .dout(pc_nxt_2)
     );
     
@@ -315,7 +336,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(zero),
         .dout(zero_M)
     );
@@ -323,7 +344,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(greater_signed),
         .dout(greater_signed_M)
     );
@@ -331,7 +352,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(greater_unsigned),
         .dout(greater_unsigned_M)
     );
@@ -339,7 +360,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(less_signed),
         .dout(less_signed_M)
     );
@@ -347,7 +368,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(less_unsigned),
         .dout(less_unsigned_M)
     );
@@ -355,7 +376,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(not_zero),
         .dout(not_zero_M)
     );
@@ -363,7 +384,7 @@ module datapath #(
         .clk(clk),
         .rst(rst),
         .clc((pcsrc & (~correct)) | error),
-        .load_use_flag(0),
+        .load_use_flag(0 | miss),
         .din(alu_result),
         .dout(alu_result_M)
     );
